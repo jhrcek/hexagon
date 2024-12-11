@@ -4,8 +4,8 @@ import Browser
 import Browser.Events
 import Html exposing (Html, div)
 import Html.Attributes exposing (style)
-import Svg exposing (Svg, svg, polygon)
-import Svg.Attributes exposing (viewBox, points, fill, stroke)
+import Svg exposing (Svg, svg, polygon, text_)
+import Svg.Attributes exposing (viewBox, points, fill, stroke, x, y, textAnchor, dominantBaseline)
 import String
 
 
@@ -50,8 +50,8 @@ update msg model =
             ( { model | w = toFloat newW, h = toFloat newH }, Cmd.none )
 
 
-hexagon : Float -> Float -> Float -> Svg msg
-hexagon cx cy r =
+hexagonWithText : Float -> Float -> Float -> String -> Svg msg
+hexagonWithText cx cy r txt =
     let
         sqrt3 = 1.7320508075688772
         x1 = cx
@@ -82,7 +82,24 @@ hexagon cx cy r =
                 , String.fromFloat x6 ++ "," ++ String.fromFloat y6
                 ]
     in
-    polygon [ points pts, fill "none", stroke "black" ] []
+    Svg.g []
+        [ polygon [ points pts, fill "none", stroke "black" ] []
+        , text_
+            [ x (String.fromFloat cx)
+            , y (String.fromFloat (cy + 5)) -- +5 to center text vertically better
+            , textAnchor "middle"
+            , dominantBaseline "middle"
+            ]
+            [ Svg.text txt ]
+        ]
+
+
+pascalNumber : Int -> Int -> Int
+pascalNumber row col =
+    if col == 0 || col == row then
+        1
+    else
+        pascalNumber (row - 1) (col - 1) + pascalNumber (row - 1) col
 
 
 pyramid : Float -> Float -> Float -> List (Svg msg)
@@ -95,16 +112,22 @@ pyramid w h r =
         rowSvg i =
             let
                 rowCount = i + 1
+                -- Position from the top; top row i=0 at y=r
+                -- Invert so that top row is at top of screen:
+                -- Actually we want a pyramid with base at bottom?
+                -- Let's keep top at top:
                 y = r + toFloat i * rowHeight
                 firstX = (w / 2) - ((toFloat (rowCount - 1)) * sqrt3 * r / 2)
             in
             List.map (\col ->
                 let
                     x = firstX + toFloat col * sqrt3 * r
+                    number = pascalNumber i col
                 in
-                hexagon x y r
+                hexagonWithText x y r (String.fromInt number)
             ) (List.range 0 (rowCount - 1))
     in
+    -- Just draw as many rows as fit
     List.concatMap rowSvg (List.range 0 (nRows - 1))
 
 
