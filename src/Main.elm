@@ -1,19 +1,53 @@
 module Main exposing (main)
 
 import Browser
-import Html exposing (Html)
+import Browser.Events
+import Html exposing (Html, div)
+import Html.Attributes exposing (style)
 import Svg exposing (Svg, svg, polygon)
-import Svg.Attributes exposing (width, height, viewBox, points, fill, stroke)
+import Svg.Attributes exposing (viewBox, points, fill, stroke)
 import String
 
 
-main : Program () () ()
+main : Program () Model Msg
 main =
-    Browser.sandbox
-        { init = ()
-        , update = \_ model -> model
+    Browser.element
+        { init = \_ -> ( initialModel, Cmd.none )
+        , update = update
+        , subscriptions = subscriptions
         , view = view
         }
+
+
+type alias Model =
+    { w : Float
+    , h : Float
+    , r : Float
+    }
+
+
+initialModel : Model
+initialModel =
+    { w = 800
+    , h = 600
+    , r = 50
+    }
+
+
+type Msg
+    = Resize Int Int
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    Browser.Events.onResize Resize
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        Resize newW newH ->
+            ( { model | w = toFloat newW, h = toFloat newH }, Cmd.none )
 
 
 hexagon : Float -> Float -> Float -> Svg msg
@@ -51,20 +85,41 @@ hexagon cx cy r =
     polygon [ points pts, fill "none", stroke "black" ] []
 
 
-view : () -> Html ()
-view _ =
+pyramid : Float -> Float -> Float -> List (Svg msg)
+pyramid w h r =
     let
-        r = 50
         sqrt3 = 1.7320508075688772
-        cx1 = 150
-        cy1 = 150
-        cx2 = cx1 + (sqrt3 * r)
-        cy2 = 150
-        cx3 = (cx1 + cx2) / 2
-        cy3 = cy1 - (1.5 * r)
+        rowHeight = 1.5 * r
+        nRows = floor (h / rowHeight)
+
+        rowSvg i =
+            let
+                rowCount = i + 1
+                y = r + toFloat i * rowHeight
+                firstX = (w / 2) - ((toFloat (rowCount - 1)) * sqrt3 * r / 2)
+            in
+            List.map (\col ->
+                let
+                    x = firstX + toFloat col * sqrt3 * r
+                in
+                hexagon x y r
+            ) (List.range 0 (rowCount - 1))
     in
-    svg [ width "300", height "300", viewBox "0 0 300 300" ]
-        [ hexagon cx1 cy1 r
-        , hexagon cx2 cy2 r
-        , hexagon cx3 cy3 r
+    List.concatMap rowSvg (List.range 0 (nRows - 1))
+
+
+view : Model -> Html Msg
+view model =
+    div
+        [ style "margin" "0"
+        , style "padding" "0"
+        , style "overflow" "hidden"
+        ]
+        [ svg
+            [ style "display" "block"
+            , style "width" "100vw"
+            , style "height" "100vh"
+            , viewBox ("0 0 " ++ String.fromFloat model.w ++ " " ++ String.fromFloat model.h)
+            ]
+            (pyramid model.w model.h model.r)
         ]
