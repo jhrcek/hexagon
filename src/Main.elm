@@ -4,6 +4,7 @@ import Browser
 import Browser.Events
 import Html exposing (Html, div)
 import Html.Attributes exposing (style)
+import Integer as I exposing (Integer)
 import String
 import Svg exposing (Svg, polygon, svg, text_)
 import Svg.Attributes exposing (dominantBaseline, fill, points, stroke, textAnchor, viewBox, x, y)
@@ -119,26 +120,7 @@ hexagonWithText cx cy r txt =
         ]
 
 
-{-| Computes the binomial coefficient, also known as "n choose k", which represents the number of ways to
-choose k elements from a set of n elements without regard to the order of selection.
-
-    binomial 5 2 == 10
-
-    binomial 6 3 == 20
-
-The function uses an iterative approach to calculate the binomial coefficient, which avoids the potential pitfalls
-of recursion and large intermediate values.
-
-Asymptotic complexity: O(min(k, n - k))
-
-Note: Since Elm's `Int` type guarantees precision up to 2^29, the function may start suffering from overflow for values
-of n and k where the binomial coefficient exceeds this limit. For example, `binomial 30 15` results in a value
-larger than 2^29, which will cause overflow.
-
--- TODO use higher precision type to avoid integer oveflow
-
--}
-binomial : Int -> Int -> Int
+binomial : Int -> Int -> Integer
 binomial n k =
     let
         minK =
@@ -149,9 +131,15 @@ binomial n k =
                 acc
 
             else
-                loop (acc * (n - i + 1) // i) (i + 1)
+                loop
+                    (I.div
+                        (I.mul acc (I.fromInt (n - i + 1)))
+                        (I.fromInt i)
+                        |> Maybe.withDefault I.zero
+                    )
+                    (i + 1)
     in
-    loop 1 1
+    loop (I.fromInt 1) 1
 
 
 pyramid : Float -> Float -> Float -> List (Svg msg)
@@ -190,7 +178,7 @@ pyramid w h r =
                         number =
                             binomial i col
                     in
-                    hexagonWithText x y r (String.fromInt number)
+                    hexagonWithText x y r (I.toString number)
                 )
                 (List.range 0 (rowCount - 1))
     in
