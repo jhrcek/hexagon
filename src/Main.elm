@@ -4,9 +4,9 @@ import Browser
 import Browser.Events
 import Html exposing (Html, div)
 import Html.Attributes exposing (style)
-import Svg exposing (Svg, svg, polygon, text_)
-import Svg.Attributes exposing (viewBox, points, fill, stroke, x, y, textAnchor, dominantBaseline)
 import String
+import Svg exposing (Svg, polygon, svg, text_)
+import Svg.Attributes exposing (dominantBaseline, fill, points, stroke, textAnchor, viewBox, x, y)
 
 
 main : Program () Model Msg
@@ -53,24 +53,44 @@ update msg model =
 hexagonWithText : Float -> Float -> Float -> String -> Svg msg
 hexagonWithText cx cy r txt =
     let
-        sqrt3 = 1.7320508075688772
-        x1 = cx
-        y1 = cy - r
+        sqrt3 =
+            1.7320508075688772
 
-        x2 = cx + (sqrt3 / 2) * r
-        y2 = cy - r / 2
+        x1 =
+            cx
 
-        x3 = cx + (sqrt3 / 2) * r
-        y3 = cy + r / 2
+        y1 =
+            cy - r
 
-        x4 = cx
-        y4 = cy + r
+        x2 =
+            cx + (sqrt3 / 2) * r
 
-        x5 = cx - (sqrt3 / 2) * r
-        y5 = cy + r / 2
+        y2 =
+            cy - r / 2
 
-        x6 = cx - (sqrt3 / 2) * r
-        y6 = cy - r / 2
+        x3 =
+            cx + (sqrt3 / 2) * r
+
+        y3 =
+            cy + r / 2
+
+        x4 =
+            cx
+
+        y4 =
+            cy + r
+
+        x5 =
+            cx - (sqrt3 / 2) * r
+
+        y5 =
+            cy + r / 2
+
+        x6 =
+            cx - (sqrt3 / 2) * r
+
+        y6 =
+            cy - r / 2
 
         pts =
             String.join " "
@@ -94,38 +114,78 @@ hexagonWithText cx cy r txt =
         ]
 
 
-pascalNumber : Int -> Int -> Int
-pascalNumber row col =
-    if col == 0 || col == row then
-        1
-    else
-        pascalNumber (row - 1) (col - 1) + pascalNumber (row - 1) col
+{-| Computes the binomial coefficient, also known as "n choose k", which represents the number of ways to
+choose k elements from a set of n elements without regard to the order of selection.
+
+    binomial 5 2 == 10
+
+    binomial 6 3 == 20
+
+The function uses an iterative approach to calculate the binomial coefficient, which avoids the potential pitfalls
+of recursion and large intermediate values.
+
+Asymptotic complexity: O(min(k, n - k))
+
+Note: Since Elm's `Int` type guarantees precision up to 2^29, the function may start suffering from overflow for values
+of n and k where the binomial coefficient exceeds this limit. For example, `binomial 30 15` results in a value
+larger than 2^29, which will cause overflow.
+
+-}
+binomial : Int -> Int -> Int
+binomial n k =
+    let
+        minK =
+            min k (n - k)
+
+        loop acc i =
+            if i > minK then
+                acc
+
+            else
+                loop (acc * (n - i + 1) // i) (i + 1)
+    in
+    loop 1 1
 
 
 pyramid : Float -> Float -> Float -> List (Svg msg)
 pyramid w h r =
     let
-        sqrt3 = 1.7320508075688772
-        rowHeight = 1.5 * r
-        nRows = floor (h / rowHeight)
+        sqrt3 =
+            1.7320508075688772
+
+        rowHeight =
+            1.5 * r
+
+        nRows =
+            floor (h / rowHeight)
 
         rowSvg i =
             let
-                rowCount = i + 1
+                rowCount =
+                    i + 1
+
                 -- Position from the top; top row i=0 at y=r
                 -- Invert so that top row is at top of screen:
                 -- Actually we want a pyramid with base at bottom?
                 -- Let's keep top at top:
-                y = r + toFloat i * rowHeight
-                firstX = (w / 2) - ((toFloat (rowCount - 1)) * sqrt3 * r / 2)
+                y =
+                    r + toFloat i * rowHeight
+
+                firstX =
+                    (w / 2) - (toFloat (rowCount - 1) * sqrt3 * r / 2)
             in
-            List.map (\col ->
-                let
-                    x = firstX + toFloat col * sqrt3 * r
-                    number = pascalNumber i col
-                in
-                hexagonWithText x y r (String.fromInt number)
-            ) (List.range 0 (rowCount - 1))
+            List.map
+                (\col ->
+                    let
+                        x =
+                            firstX + toFloat col * sqrt3 * r
+
+                        number =
+                            binomial i col
+                    in
+                    hexagonWithText x y r (String.fromInt number)
+                )
+                (List.range 0 (rowCount - 1))
     in
     -- Just draw as many rows as fit
     List.concatMap rowSvg (List.range 0 (nRows - 1))
