@@ -103,7 +103,12 @@ hexagonWithText cx cy r txt =
                 ]
     in
     Svg.g []
-        [ polygon [ points pts, fill "none", stroke "black" ] []
+        [ polygon
+            [ points pts
+            , fill "none"
+            , stroke "black"
+            ]
+            []
         , text_
             [ x (String.fromFloat cx)
             , y (String.fromFloat (cy + 5)) -- +5 to center text vertically better
@@ -129,6 +134,8 @@ Asymptotic complexity: O(min(k, n - k))
 Note: Since Elm's `Int` type guarantees precision up to 2^29, the function may start suffering from overflow for values
 of n and k where the binomial coefficient exceeds this limit. For example, `binomial 30 15` results in a value
 larger than 2^29, which will cause overflow.
+
+-- TODO use higher precision type to avoid integer oveflow
 
 -}
 binomial : Int -> Int -> Int
