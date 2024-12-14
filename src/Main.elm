@@ -2,12 +2,13 @@ module Main exposing (main)
 
 import Browser
 import Browser.Events
-import Html exposing (Html, div)
+import Html exposing (Html)
 import Html.Attributes exposing (style)
 import Integer as I exposing (Integer)
 import String
-import Svg exposing (Svg, polygon, svg, text_)
-import Svg.Attributes exposing (dominantBaseline, fill, points, stroke, textAnchor, viewBox, x, y)
+import Svg exposing (Svg)
+import Svg.Attributes as A
+import Svg.Events as E
 
 
 main : Program () Model Msg
@@ -24,6 +25,7 @@ type alias Model =
     { w : Float
     , h : Float
     , r : Float
+    , hover : Maybe ( Int, Int )
     }
 
 
@@ -32,91 +34,86 @@ initialModel =
     { w = 800
     , h = 600
     , r = 50
+    , hover = Nothing
     }
 
 
 type Msg
-    = Resize Int Int
+    = WindowResized Int Int
+    | HexagonHovered Int Int
+    | HexagonUnhovered
 
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Browser.Events.onResize Resize
+    Browser.Events.onResize WindowResized
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        Resize newW newH ->
+        WindowResized newW newH ->
             ( { model | w = toFloat newW, h = toFloat newH }, Cmd.none )
 
+        HexagonHovered rowIdx colIdx ->
+            ( { model | hover = Just ( rowIdx, colIdx ) }, Cmd.none )
 
-hexagonWithText : Float -> Float -> Float -> String -> Svg msg
-hexagonWithText cx cy r txt =
+        HexagonUnhovered ->
+            ( { model | hover = Nothing }, Cmd.none )
+
+
+hexagonWithText : Float -> Float -> Float -> Int -> Int -> Bool -> Svg Msg
+hexagonWithText cx cy r rowIdx colIdx hovered =
     let
-        sqrt3 =
-            1.7320508075688772
+        -- Generate 6 points of hexagon using angles
+        angles =
+            List.map (\i -> 2 * pi * toFloat i / 6) (List.range 0 5)
 
-        x1 =
-            cx
+        hexPoints =
+            List.map
+                (\angle ->
+                    let
+                        x =
+                            cx + r * sin angle
 
-        y1 =
-            cy - r
-
-        x2 =
-            cx + (sqrt3 / 2) * r
-
-        y2 =
-            cy - r / 2
-
-        x3 =
-            cx + (sqrt3 / 2) * r
-
-        y3 =
-            cy + r / 2
-
-        x4 =
-            cx
-
-        y4 =
-            cy + r
-
-        x5 =
-            cx - (sqrt3 / 2) * r
-
-        y5 =
-            cy + r / 2
-
-        x6 =
-            cx - (sqrt3 / 2) * r
-
-        y6 =
-            cy - r / 2
+                        y =
+                            cy - r * cos angle
+                    in
+                    String.fromFloat x ++ "," ++ String.fromFloat y
+                )
+                angles
 
         pts =
-            String.join " "
-                [ String.fromFloat x1 ++ "," ++ String.fromFloat y1
-                , String.fromFloat x2 ++ "," ++ String.fromFloat y2
-                , String.fromFloat x3 ++ "," ++ String.fromFloat y3
-                , String.fromFloat x4 ++ "," ++ String.fromFloat y4
-                , String.fromFloat x5 ++ "," ++ String.fromFloat y5
-                , String.fromFloat x6 ++ "," ++ String.fromFloat y6
-                ]
+            String.join " " hexPoints
+
+        label =
+            I.toString <| binomial rowIdx colIdx
     in
-    Svg.g []
-        [ polygon
-            [ points pts
-            , fill "none"
-            , stroke "black"
+    Svg.g
+        [ -- Needed so we "catch" mouse enter events
+          -- https://stackoverflow.com/questions/36137604/svg-polygon-hover-does-not-work-correclty/36137718#answer-36137718
+          A.pointerEvents "visible"
+        , E.onMouseOver (HexagonHovered rowIdx colIdx)
+        , E.onMouseOut HexagonUnhovered
+        ]
+        [ Svg.polygon
+            [ A.points pts
+            , A.fill <|
+                if hovered then
+                    "lightgreen"
+
+                else
+                    "none"
+            , A.stroke "black"
             ]
             []
-        , text_
-            [ x (String.fromFloat cx)
-            , y (String.fromFloat (cy + 5)) -- +5 to center text vertically better
-            , textAnchor "middle"
-            , dominantBaseline "middle"
+        , Svg.text_
+            [ A.x (String.fromFloat cx)
+            , A.y (String.fromFloat cy)
+            , A.textAnchor "middle"
+            , A.dominantBaseline "middle"
             ]
-            [ Svg.text txt ]
+            [ Svg.text label ]
         ]
 
 
@@ -142,8 +139,8 @@ binomial n k =
     loop (I.fromInt 1) 1
 
 
-pyramid : Float -> Float -> Float -> List (Svg msg)
-pyramid w h r =
+pyramid : Float -> Float -> Float -> Maybe ( Int, Int ) -> List (Svg Msg)
+pyramid w h r hover =
     let
         sqrt3 =
             1.7320508075688772
@@ -154,31 +151,31 @@ pyramid w h r =
         nRows =
             floor (h / rowHeight)
 
-        rowSvg i =
+        rowSvg rowIdx =
             let
                 rowCount =
-                    i + 1
+                    rowIdx + 1
 
                 -- Position from the top; top row i=0 at y=r
                 -- Invert so that top row is at top of screen:
                 -- Actually we want a pyramid with base at bottom?
                 -- Let's keep top at top:
                 y =
-                    r + toFloat i * rowHeight
+                    r + toFloat rowIdx * rowHeight
 
                 firstX =
                     (w / 2) - (toFloat (rowCount - 1) * sqrt3 * r / 2)
             in
             List.map
-                (\col ->
+                (\colIdx ->
                     let
                         x =
-                            firstX + toFloat col * sqrt3 * r
+                            firstX + toFloat colIdx * sqrt3 * r
 
-                        number =
-                            binomial i col
+                        isHovered =
+                            hover == Just ( rowIdx, colIdx )
                     in
-                    hexagonWithText x y r (I.toString number)
+                    hexagonWithText x y r rowIdx colIdx isHovered
                 )
                 (List.range 0 (rowCount - 1))
     in
@@ -188,16 +185,16 @@ pyramid w h r =
 
 view : Model -> Html Msg
 view model =
-    div
+    Html.div
         [ style "margin" "0"
         , style "padding" "0"
         , style "overflow" "hidden"
         ]
-        [ svg
+        [ Svg.svg
             [ style "display" "block"
             , style "width" "100vw"
             , style "height" "100vh"
-            , viewBox ("0 0 " ++ String.fromFloat model.w ++ " " ++ String.fromFloat model.h)
+            , A.viewBox ("0 0 " ++ String.fromFloat model.w ++ " " ++ String.fromFloat model.h)
             ]
-            (pyramid model.w model.h model.r)
+            (pyramid model.w model.h model.r model.hover)
         ]
