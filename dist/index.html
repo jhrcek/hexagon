@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Elm KaTeX Example</title>
+
+    <!-- KaTeX CSS from CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.15.2/dist/katex.min.css"
+         crossorigin="anonymous">
+</head>
+
+<body>
+    <!-- Elm app will be mounted here -->
+    <div id="app"></div>
+
+    <!-- KaTeX JS from CDN -->
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.15.2/dist/katex.min.js"
+        crossorigin="anonymous">
+        </script>
+
+    <!-- Your compiled Elm code -->
+    <script src="js/elm.js"></script>
+
+    <script>
+        // Initialize Elm app
+        var app = Elm.Main3.init({ node: document.getElementById('app') });
+
+        // Once the DOM is loaded, render the math using KaTeX
+        document.addEventListener('DOMContentLoaded', function () {
+            var mathContainer = document.getElementById('math-container');
+            if (mathContainer) {
+                katex.render("\\binom{15}{12}", mathContainer);
+            }
+        });
+    </script>
+</body>
+
+</html>
